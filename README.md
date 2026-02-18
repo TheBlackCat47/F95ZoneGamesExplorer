@@ -1,6 +1,6 @@
 # Game Translate FR — Interface Web
 
-![Status](https://img.shields.io/badge/Status-Live-brightgreen)
+![Status](https://img.shields.io/badge/Status-Development-orange)
 ![Category](https://img.shields.io/badge/Projet-Communautaire-blue)
 
 **Game Translate FR** est une interface web statique moderne conçue pour faciliter la consultation du tableur communautaire de traductions françaises de jeux. 
@@ -25,8 +25,17 @@ Cette page web fait office de "front-end" pour le catalogue communautaire. Elle 
 ## 🛠️ Stack Technique
 
 * **Langages :** HTML5, CSS3, JavaScript.
-* **Source de données :** Google Sheets API (via export CSV/JSON).
+* **Source de données :** * ⏳ *En cours :* Intégration automatisée via Google Sheets API (Export CSV/JSON).
+    * *Actuel :* Import local de données pour test.
 * **Stockage :** LocalStorage pour la mise en cache des données et la rapidité d'accès.
+
+---
+
+## 🗺️ Roadmap / À venir
+
+- [ ] Finalisation de la récupération dynamique des données via l'API Google Sheets.
+- [ ] Amélioration de la gestion des erreurs lors de l'indisponibilité du flux de données.
+- [ ] Optimisation du système de mise à jour automatique du cache local.
 
 ---
 
@@ -37,3 +46,5 @@ Cette page web fait office de "front-end" pour le catalogue communautaire. Elle 
 | **Discord** | [Rejoindre la communauté](https://discord.gg/votre-invitation) |
 | **Thread F95** | [Forum de discussion](https://f95zone.to/threads/votre-lien) |
 | **Extension F95** | [Plugin navigateur dédié](https://github.com/votre-lien-extension) |
+
+---
