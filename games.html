@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Translate FR</title>
+    <link rel="preconnect" href="https://docs.google.com" crossorigin>
+    <link rel="dns-prefetch" href="https://docs.google.com">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 20px 30px;
+            border-bottom: 2px solid #0f3460;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        header h1 {
+            font-size: 1.6rem;
+            color: #e94560;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .controls.collapsed { display: none; }
+        .controls input[type="text"] {
+            flex: 1;
+            min-width: 220px;
+            padding: 8px 14px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+        }
+        .controls input:focus { outline: none; border-color: #e94560; }
+        .controls select {
+            padding: 8px 12px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .stats {
+            font-size: 0.85rem;
+            color: #888;
+            padding: 6px 0 0 4px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 24px;
+        }
+        .card {
+            background: #1a1a2e;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #222;
+            transition: transform 0.2s, border-color 0.2s;
+            contain: content;
+            content-visibility: auto;
+            contain-intrinsic-size: 0 360px;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: #e94560;
+        }
+        .card-img-wrap {
+            width: 100%;
+            height: 180px;
+            background: #111;
+            position: relative;
+            overflow: hidden;
+        }
+        .card-img-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(110deg, #111 30%, #1a1a2e 50%, #111 70%);
+            background-size: 200% 100%;
+            animation: none;
+        }
+        .card-img-wrap.shimmer::before {
+            animation: shimmer 1.5s infinite;
+        }
+        .card-img-wrap.loaded::before { display: none; }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .card-img.visible { opacity: 1; }
+        .card-body { padding: 14px; }
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .card-title a {
+            color: #e94560;
+            text-decoration: none;
+        }
+        .card-title a:hover { text-decoration: underline; }
+        .card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-en-cours { background: #0d6efd22; color: #6ea8fe; border: 1px solid #0d6efd44; }
+        .badge-termine { background: #19875422; color: #63d99a; border: 1px solid #19875444; }
+        .badge-abandonne { background: #dc354522; color: #f08090; border: 1px solid #dc354544; }
+        .badge-type { background: #6f42c122; color: #b197fc; border: 1px solid #6f42c144; }
+        .badge-trad-type { background: #fd7e1422; color: #fdba74; border: 1px solid #fd7e1444; }
+        .card-info {
+            font-size: 0.82rem;
+            color: #aaa;
+            line-height: 1.6;
+        }
+        .card-info span { color: #ccc; }
+        .card-tags {
+            margin-top: 8px;
+            font-size: 0.72rem;
+            color: #666;
+            line-height: 1.5;
+        }
+        .card-links {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.8; }
+        .btn-game { background: #e94560; color: #fff; }
+        #loading {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 80px 20px;
+            color: #888;
+            font-size: 1.1rem;
+        }
+        #error {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #f08090;
+            font-size: 1rem;
+            display: none;
+        }
+        .no-results {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Buttons in controls */
+        .refresh-btn, .reset-btn {
+            background: none;
+            border: 1px solid #444;
+            color: #aaa;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .refresh-btn:hover, .reset-btn:hover { border-color: #e94560; color: #e94560; }
+        .refresh-btn.loading {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .reset-btn { display: none; }
+        .reset-btn.visible { display: inline-block; }
+
+        /* Toggle controls button (mobile) */
+        .toggle-controls {
+            display: none;
+            background: none;
+            border: 1px solid #444;
+            color: #aaa;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .toggle-controls:hover { border-color: #e94560; color: #e94560; }
+        @media (max-width: 768px) {
+            .toggle-controls { display: inline-block; }
+        }
+
+        /* Navigation tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 12px;
+        }
+        .nav-tab {
+            background: none;
+            border: none;
+            color: #888;
+            padding: 8px 18px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .nav-tab:hover { color: #ccc; }
+        .nav-tab.active { color: #e94560; border-bottom-color: #e94560; }
+
+        /* MAJ panel */
+        .maj-panel {
+            display: none;
+            padding: 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .maj-panel.visible { display: block; }
+        .maj-panel h2 {
+            font-size: 1.2rem;
+            color: #e94560;
+            margin-bottom: 16px;
+        }
+        .maj-loading {
+            color: #888;
+            text-align: center;
+            padding: 40px;
+        }
+        .maj-date-group {
+            margin-bottom: 18px;
+        }
+        .maj-date {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #ccc;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #222;
+        }
+        .maj-entry {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            padding: 5px 0;
+            font-size: 0.88rem;
+        }
+        .maj-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .maj-type-ajout { background: #19875422; color: #63d99a; border: 1px solid #19875444; }
+        .maj-type-maj { background: #0d6efd22; color: #6ea8fe; border: 1px solid #0d6efd44; }
+        .maj-type-other { background: #6f42c122; color: #b197fc; border: 1px solid #6f42c144; }
+        .maj-games { color: #bbb; }
+
+        /* Info panel */
+        .info-panel {
+            display: none;
+            padding: 32px 24px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .info-panel.visible { display: block; }
+        .info-loading {
+            color: #888;
+            text-align: center;
+            padding: 40px;
+        }
+
+        /* Hero section */
+        .info-hero {
+            text-align: center;
+            padding: 32px 20px 24px;
+            margin-bottom: 28px;
+        }
+        .info-hero-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, #e94560, #c23152);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .info-hero-icon svg { width: 34px; height: 34px; fill: #fff; }
+        .info-hero h2 {
+            font-size: 1.5rem;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+        .info-hero h2 span { color: #e94560; }
+        .info-hero-sub {
+            font-size: 0.92rem;
+            color: #888;
+            max-width: 520px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* About card */
+        .info-about {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px solid #0f3460;
+            border-radius: 12px;
+            padding: 22px 24px;
+            margin-bottom: 28px;
+            line-height: 1.7;
+            font-size: 0.9rem;
+            color: #bbb;
+        }
+        .info-about-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+        .info-about-title svg { width: 18px; height: 18px; fill: #e94560; flex-shrink: 0; }
+
+        /* Features grid */
+        .info-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .info-feature {
+            background: #1a1a2e;
+            border: 1px solid #222;
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        .info-feature:hover { border-color: #333; }
+        .info-feature-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 10px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .info-feature-icon svg { width: 20px; height: 20px; }
+        .info-feature-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ccc;
+            margin-bottom: 4px;
+        }
+        .info-feature-desc {
+            font-size: 0.78rem;
+            color: #777;
+            line-height: 1.4;
+        }
+
+        /* Section title */
+        .info-section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ccc;
+            margin-bottom: 14px;
+        }
+        .info-section-title svg { width: 18px; height: 18px; fill: #e94560; flex-shrink: 0; }
+
+        /* Link cards */
+        .info-links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .info-link-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: #1a1a2e;
+            border: 1px solid #222;
+            border-radius: 10px;
+            padding: 16px;
+            text-decoration: none;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .info-link-card:hover { border-color: #e94560; transform: translateY(-2px); }
+        .info-link-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .info-link-icon svg { width: 22px; height: 22px; }
+        .info-link-text { min-width: 0; }
+        .info-link-name {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 2px;
+        }
+        .info-link-url {
+            font-size: 0.75rem;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Back to top */
+        .back-to-top {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 1.3rem;
+            line-height: 44px;
+            text-align: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 200;
+        }
+        .back-to-top.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .back-to-top:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1>Game Translate FR</h1>
+            <button class="toggle-controls" id="toggleControls" title="Afficher/masquer les filtres">Filtres</button>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" id="tabJeux">Jeux</button>
+            <button class="nav-tab" id="tabMaj">Mises &agrave; jour</button>
+            <button class="nav-tab" id="tabInfo">Informations</button>
+        </div>
+        <div class="controls" id="controls">
+            <input type="text" id="search" placeholder="Rechercher un jeu, tag, traducteur...">
+            <select id="filterStatut">
+                <option value="">Tous les statuts</option>
+                <option value="EN COURS">En Cours</option>
+                <option value="TERMINÉ">Termin&eacute;</option>
+                <option value="ABANDONNÉ">Abandonn&eacute;</option>
+            </select>
+            <select id="filterType">
+                <option value="">Tous les moteurs</option>
+            </select>
+            <select id="filterTradType">
+                <option value="">Toutes traductions</option>
+            </select>
+            <select id="sortBy">
+                <option value="name">Tri: Nom A-Z</option>
+                <option value="name-desc">Tri: Nom Z-A</option>
+                <option value="statut">Tri: Statut</option>
+            </select>
+            <button class="reset-btn" id="resetBtn" title="R&eacute;initialiser tous les filtres">R&eacute;initialiser</button>
+            <button class="refresh-btn" id="refreshBtn" title="Recharger les donnees depuis Google Sheets">Actualiser</button>
+        </div>
+        <div class="stats" id="stats"></div>
+    </header>
+    <div class="grid" id="grid">
+        <div id="loading">Chargement des jeux depuis Google Sheets...</div>
+        <div id="error"></div>
+    </div>
+
+    <div class="maj-panel" id="majPanel">
+        <div class="maj-loading" id="majLoading">Chargement des mises &agrave; jour...</div>
+        <div id="majContent"></div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+        <div class="info-loading" id="infoLoading">Chargement des informations...</div>
+        <div id="infoContent"></div>
+    </div>
+
+    <button class="back-to-top" id="backToTop" title="Retour en haut">&uarr;</button>
+
+    <template id="card-tpl">
+        <div class="card">
+            <div class="card-img-wrap"></div>
+            <div class="card-body">
+                <div class="card-title"></div>
+                <div class="card-meta">
+                    <span class="badge badge-statut"></span>
+                    <span class="badge badge-type"></span>
+                    <span class="badge badge-trad-type"></span>
+                </div>
+                <div class="card-info"></div>
+                <div class="card-tags"></div>
+                <div class="card-links"><a class="btn btn-game" target="_blank" rel="noopener">Page F95</a></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+    const SHEET_ID = '1ELRF0kpF8SoUlslX5ZXZoG4WXeWST6lN9bLws32EPfs';
+    const GID = '1224125898';
+    const CACHE_KEY = 'gx_games_cache';
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    const searchInput = document.getElementById('search');
+    const filterStatut = document.getElementById('filterStatut');
+    const filterType = document.getElementById('filterType');
+    const filterTradType = document.getElementById('filterTradType');
+    const sortBy = document.getElementById('sortBy');
+    const grid = document.getElementById('grid');
+    const stats = document.getElementById('stats');
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('error');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const cardTpl = document.getElementById('card-tpl');
+    const backToTopBtn = document.getElementById('backToTop');
+    const toggleControlsBtn = document.getElementById('toggleControls');
+
+    let GAMES_DATA = [];
+    let dataSource = 'cache'; // #5: clean variable instead of _fromCache hack
+
+    function cellVal(cell) {
+        if (!cell) return '';
+        return cell.v != null ? String(cell.v) : '';
+    }
+
+    // #1: Pre-compute lowercase fields for fast filtering
+    function parseRows(rows) {
+        const games = [];
+        for (const row of rows) {
+            const c = row.c;
+            if (!c || !c[0]) continue;
+            const id = c[0].f || String(c[0].v || '');
+            const name = cellVal(c[2]);
+            if (!name) continue;
+            const cleanId = id.replace('.0', '');
+            const translator = cellVal(c[9]);
+            const tags = cellVal(c[7]);
+            games.push({
+                id: cleanId,
+                site: cellVal(c[1]),
+                name: name,
+                game_url: id ? `https://f95zone.to/threads/${cleanId}` : '',
+                version: cellVal(c[3]),
+                trad_version: cellVal(c[4]),
+                trad_text: cellVal(c[5]),
+                statut: cellVal(c[6]),
+                tags: tags,
+                type: cellVal(c[8]),
+                translator: translator,
+                relecteur: cellVal(c[10]),
+                type_trad: cellVal(c[11]),
+                image: cellVal(c[13]),
+                // Pre-computed lowercase for filtering
+                _nameL: name.toLowerCase(),
+                _tagsL: tags.toLowerCase(),
+                _translatorL: translator.toLowerCase()
+            });
+        }
+        return games;
+    }
+
+    // localStorage cache helpers
+    function saveCache(games) {
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), games: games }));
+        } catch (e) { /* quota exceeded */ }
+    }
+
+    function loadCache() {
+        try {
+            const raw = localStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (!data || !Array.isArray(data.games)) return null;
+            // Rehydrate lowercase fields if missing (old cache format)
+            for (const g of data.games) {
+                if (!g._nameL) {
+                    g._nameL = (g.name || '').toLowerCase();
+                    g._tagsL = (g.tags || '').toLowerCase();
+                    g._translatorL = (g.translator || '').toLowerCase();
+                }
+            }
+            return data;
+        } catch (e) { return null; }
+    }
+
+    // JSONP handler
+    function google_sheets_callback(response) {
+        const scriptEl = document.getElementById('gsheet-script');
+        if (scriptEl) scriptEl.remove();
+
+        refreshBtn.textContent = 'Actualiser'; // #9: Reset button text
+        refreshBtn.classList.remove('loading');
+
+        try {
+            const games = parseRows(response.table.rows);
+            GAMES_DATA = games;
+            dataSource = 'live';
+            saveCache(games);
+            // #4: Preserve filter selections during background refresh
+            const savedStatut = filterStatut.value;
+            const savedType = filterType.value;
+            const savedTradType = filterTradType.value;
+            populateFilters();
+            filterStatut.value = savedStatut;
+            filterType.value = savedType;
+            filterTradType.value = savedTradType;
+            render();
+        } catch (err) {
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'block';
+            errorEl.textContent = `Erreur de parsing: ${err.message}`;
+        }
+    }
+
+    function fetchGames(skipCacheDisplay) {
+        // #9: Visual feedback on refresh button
+        refreshBtn.textContent = 'Chargement\u2026';
+        refreshBtn.classList.add('loading');
+
+        if (!skipCacheDisplay) {
+            loadingEl.style.display = 'block';
+            errorEl.style.display = 'none';
+            grid.querySelectorAll('.card').forEach(c => c.remove());
+        }
+
+        const old = document.getElementById('gsheet-script');
+        if (old) old.remove();
+
+        const script = document.createElement('script');
+        script.id = 'gsheet-script';
+        script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:google_sheets_callback&gid=${GID}`;
+        script.onerror = function() {
+            this.remove();
+            refreshBtn.textContent = 'Actualiser';
+            refreshBtn.classList.remove('loading');
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'block';
+            errorEl.textContent = 'Erreur de chargement. Verifiez que le Google Sheet est accessible publiquement.';
+        };
+        document.body.appendChild(script);
+    }
+
+    function populateFilters() {
+        while (filterType.options.length > 1) filterType.remove(1);
+        while (filterTradType.options.length > 1) filterTradType.remove(1);
+
+        const types = [...new Set(GAMES_DATA.map(g => g.type).filter(Boolean))].sort();
+        types.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            filterType.appendChild(opt);
+        });
+
+        const tradTypes = [...new Set(GAMES_DATA.map(g => g.type_trad).filter(Boolean))].sort();
+        tradTypes.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            filterTradType.appendChild(opt);
+        });
+    }
+
+    function statutBadgeClass(statut) {
+        if (statut === 'EN COURS') return 'badge-en-cours';
+        if (statut === 'TERMINÉ') return 'badge-termine';
+        return 'badge-abandonne';
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    const BATCH_SIZE = 48;
+    let currentFiltered = [];
+    let displayedCount = 0;
+
+    // #3: Only start shimmer animation when card enters viewport
+    const imgObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const wrap = entry.target;
+            const src = wrap.dataset.src;
+            if (!src) continue;
+            wrap.classList.add('shimmer'); // Start animation only now
+            const img = document.createElement('img');
+            img.className = 'card-img';
+            img.alt = wrap.dataset.alt || '';
+            img.src = src;
+            img.onload = () => { img.classList.add('visible'); wrap.classList.add('loaded'); };
+            img.onerror = () => { wrap.style.display = 'none'; };
+            wrap.appendChild(img);
+            delete wrap.dataset.src;
+            imgObserver.unobserve(wrap);
+        }
+    }, { rootMargin: '300px' });
+
+    function renderCard(game) {
+        const clone = cardTpl.content.cloneNode(true);
+        const card = clone.querySelector('.card');
+
+        const imgWrap = card.querySelector('.card-img-wrap');
+        if (game.image) {
+            imgWrap.dataset.src = game.image;
+            imgWrap.dataset.alt = game.name;
+        } else {
+            imgWrap.remove();
+        }
+
+        const titleEl = card.querySelector('.card-title');
+        if (game.game_url) {
+            const a = document.createElement('a');
+            a.href = game.game_url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = game.name;
+            titleEl.appendChild(a);
+        } else {
+            titleEl.textContent = game.name;
+        }
+
+        const statutBadge = card.querySelector('.badge-statut');
+        statutBadge.textContent = game.statut;
+        statutBadge.classList.add(statutBadgeClass(game.statut));
+
+        const typeBadge = card.querySelector('.badge-type');
+        if (game.type) {
+            typeBadge.textContent = game.type;
+        } else {
+            typeBadge.remove();
+        }
+
+        const tradTypeBadge = card.querySelector('.badge-trad-type');
+        if (game.type_trad) {
+            tradTypeBadge.textContent = game.type_trad;
+        } else {
+            tradTypeBadge.remove();
+        }
+
+        const infoEl = card.querySelector('.card-info');
+        let infoHtml = `Version: <span>${escapeHtml(game.version)}</span> | Trad: <span>${escapeHtml(game.trad_version)}</span>`;
+        if (game.translator) infoHtml += `<br>Traducteur: <span>${escapeHtml(game.translator)}</span>`;
+        if (game.relecteur) infoHtml += ` | Relecteur: <span>${escapeHtml(game.relecteur)}</span>`;
+        infoEl.innerHTML = infoHtml;
+
+        const tagsEl = card.querySelector('.card-tags');
+        if (game.tags) {
+            tagsEl.textContent = game.tags;
+        } else {
+            tagsEl.remove();
+        }
+
+        const linksEl = card.querySelector('.card-links');
+        if (game.game_url) {
+            linksEl.querySelector('a').href = game.game_url;
+        } else {
+            linksEl.remove();
+        }
+
+        return clone;
+    }
+
+    function appendBatch() {
+        const end = Math.min(displayedCount + BATCH_SIZE, currentFiltered.length);
+        if (displayedCount >= end) return;
+
+        const fragment = document.createDocumentFragment();
+        for (let i = displayedCount; i < end; i++) {
+            fragment.appendChild(renderCard(currentFiltered[i]));
+        }
+
+        fragment.querySelectorAll('.card-img-wrap[data-src]').forEach(wrap => imgObserver.observe(wrap));
+
+        grid.appendChild(fragment);
+        displayedCount = end;
+
+        stats.textContent = `${displayedCount}/${currentFiltered.length} affich\u00e9${displayedCount > 1 ? 's' : ''} sur ${GAMES_DATA.length} | Source: ${dataSource === 'live' ? 'Google Sheets (live)' : 'cache'}`;
+    }
+
+    const sentinel = document.createElement('div');
+    sentinel.style.cssText = 'grid-column:1/-1;height:1px;';
+    const scrollObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && displayedCount < currentFiltered.length) {
+            appendBatch();
+            grid.appendChild(sentinel);
+        }
+    }, { rootMargin: '600px' });
+    scrollObserver.observe(sentinel);
+
+    let debounceTimer;
+    function render() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(_render, 150);
+    }
+
+    function _render() {
+        loadingEl.style.display = 'none';
+        const query = searchInput.value.toLowerCase().trim();
+        const sStatut = filterStatut.value;
+        const sType = filterType.value;
+        const sTradType = filterTradType.value;
+        const sort = sortBy.value;
+
+        // #1: Use pre-computed lowercase fields
+        currentFiltered = GAMES_DATA.filter(g => {
+            if (query && !g._nameL.includes(query)
+                && !g._tagsL.includes(query)
+                && !g._translatorL.includes(query)) return false;
+            if (sStatut && g.statut !== sStatut) return false;
+            if (sType && g.type !== sType) return false;
+            if (sTradType && g.type_trad !== sTradType) return false;
+            return true;
+        });
+
+        currentFiltered.sort((a, b) => {
+            if (sort === 'name') return a.name.localeCompare(b.name, 'fr');
+            if (sort === 'name-desc') return b.name.localeCompare(a.name, 'fr');
+            if (sort === 'statut') return a.statut.localeCompare(b.statut, 'fr') || a.name.localeCompare(b.name, 'fr');
+            return 0;
+        });
+
+        // #7: Save filters to sessionStorage
+        saveFiltersState();
+        // #8: Update reset button visibility
+        updateResetBtn();
+
+        if (currentFiltered.length === 0) {
+            grid.innerHTML = '<div class="no-results">Aucun jeu trouv&eacute;</div>';
+            stats.textContent = `0 jeu sur ${GAMES_DATA.length} | Source: Google Sheets`;
+            return;
+        }
+
+        grid.innerHTML = '';
+        displayedCount = 0;
+        appendBatch();
+        grid.appendChild(sentinel);
+    }
+
+    // ── #7: Filter persistence in sessionStorage ────────────
+    function saveFiltersState() {
+        try {
+            sessionStorage.setItem('gx_filters', JSON.stringify({
+                search: searchInput.value,
+                statut: filterStatut.value,
+                type: filterType.value,
+                tradType: filterTradType.value,
+                sort: sortBy.value
+            }));
+        } catch (e) {}
+    }
+
+    function restoreFiltersState() {
+        try {
+            const raw = sessionStorage.getItem('gx_filters');
+            if (!raw) return;
+            const f = JSON.parse(raw);
+            if (f.search) searchInput.value = f.search;
+            if (f.statut) filterStatut.value = f.statut;
+            if (f.type) filterType.value = f.type;
+            if (f.tradType) filterTradType.value = f.tradType;
+            if (f.sort) sortBy.value = f.sort;
+        } catch (e) {}
+    }
+
+    // ── #8: Reset filters button ────────────────────────────
+    function hasActiveFilters() {
+        return searchInput.value || filterStatut.value || filterType.value || filterTradType.value || sortBy.value !== 'name';
+    }
+
+    function updateResetBtn() {
+        resetBtn.classList.toggle('visible', hasActiveFilters());
+    }
+
+    function resetFilters() {
+        searchInput.value = '';
+        filterStatut.value = '';
+        filterType.value = '';
+        filterTradType.value = '';
+        sortBy.value = 'name';
+        render();
+    }
+
+    // ── #11: Back to top button ─────────────────────────────
+    window.addEventListener('scroll', () => {
+        backToTopBtn.classList.toggle('visible', window.scrollY > 600);
+    }, { passive: true });
+
+    backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ── #10: Collapsible controls on mobile ─────────────────
+    let controlsCollapsed = false;
+    const controlsEl = document.getElementById('controls');
+    toggleControlsBtn.addEventListener('click', () => {
+        controlsCollapsed = !controlsCollapsed;
+        controlsEl.classList.toggle('collapsed', controlsCollapsed);
+        toggleControlsBtn.textContent = controlsCollapsed ? 'Filtres +' : 'Filtres';
+    });
+    // Auto-collapse on mobile at start
+    if (window.innerWidth <= 768) {
+        controlsCollapsed = true;
+        controlsEl.classList.add('collapsed');
+        toggleControlsBtn.textContent = 'Filtres +';
+    }
+
+    // ── Event listeners ─────────────────────────────────────
+    searchInput.addEventListener('input', render);
+    filterStatut.addEventListener('change', render);
+    filterType.addEventListener('change', render);
+    filterTradType.addEventListener('change', render);
+    sortBy.addEventListener('change', render);
+    refreshBtn.addEventListener('click', function() { fetchGames(); });
+    resetBtn.addEventListener('click', resetFilters);
+
+    // ── #6: Hash routing for tabs ───────────────────────────
+    const tabJeux = document.getElementById('tabJeux');
+    const tabMaj = document.getElementById('tabMaj');
+    const tabInfo = document.getElementById('tabInfo');
+    const majPanel = document.getElementById('majPanel');
+    const infoPanel = document.getElementById('infoPanel');
+    const infoLoading = document.getElementById('infoLoading');
+    const infoContent = document.getElementById('infoContent');
+    const majLoading = document.getElementById('majLoading');
+    const majContent = document.getElementById('majContent');
+    const MAJ_CACHE_KEY = 'gx_maj_cache';
+    const INFO_CACHE_KEY = 'gx_info_cache';
+    let majLoaded = false;
+    let infoLoaded = false;
+
+    function switchTab(tab, pushHash) {
+        tabJeux.classList.remove('active');
+        tabMaj.classList.remove('active');
+        tabInfo.classList.remove('active');
+        grid.style.display = 'none';
+        controlsEl.style.display = 'none';
+        stats.style.display = 'none';
+        majPanel.classList.remove('visible');
+        infoPanel.classList.remove('visible');
+
+        if (tab === 'maj') {
+            tabMaj.classList.add('active');
+            majPanel.classList.add('visible');
+            if (!majLoaded) fetchMaj();
+        } else if (tab === 'info') {
+            tabInfo.classList.add('active');
+            infoPanel.classList.add('visible');
+            if (!infoLoaded) fetchInfo();
+        } else {
+            tab = 'jeux';
+            tabJeux.classList.add('active');
+            grid.style.display = '';
+            controlsEl.style.display = '';
+            if (controlsCollapsed) controlsEl.classList.add('collapsed');
+            stats.style.display = '';
+        }
+
+        if (pushHash !== false) {
+            history.replaceState(null, '', tab === 'jeux' ? location.pathname + location.search : '#' + tab);
+        }
+    }
+
+    tabJeux.addEventListener('click', () => switchTab('jeux'));
+    tabMaj.addEventListener('click', () => switchTab('maj'));
+    tabInfo.addEventListener('click', () => switchTab('info'));
+    window.addEventListener('hashchange', () => {
+        const h = location.hash.replace('#', '') || 'jeux';
+        switchTab(h, false);
+    });
+
+    // ── MAJ tab ─────────────────────────────────────────────
+    function majCallback(response) {
+        const scriptEl = document.getElementById('gsheet-maj');
+        if (scriptEl) scriptEl.remove();
+
+        try {
+            const rows = response.table.rows;
+            const entries = [];
+            for (const row of rows) {
+                const c = row.c;
+                if (!c || !c[0]) continue;
+                let dateStr = '';
+                if (c[0].f) {
+                    dateStr = c[0].f;
+                } else if (c[0].v) {
+                    const m = String(c[0].v).match(/Date\((\d+),(\d+),(\d+)\)/);
+                    if (m) {
+                        const d = new Date(+m[1], +m[2], +m[3]);
+                        dateStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    }
+                }
+                const type = cellVal(c[1]);
+                const games = cellVal(c[2]);
+                if (!dateStr && !type && !games) continue;
+                entries.push({ date: dateStr, type: type, games: games });
+            }
+
+            try {
+                localStorage.setItem(MAJ_CACHE_KEY, JSON.stringify({ ts: Date.now(), entries: entries }));
+            } catch (e) {}
+
+            renderMaj(entries);
+        } catch (err) {
+            majLoading.textContent = 'Erreur de chargement des mises \u00e0 jour.';
+        }
+    }
+    window.majCallback = majCallback;
+
+    function fetchMaj() {
+        try {
+            const raw = localStorage.getItem(MAJ_CACHE_KEY);
+            if (raw) {
+                const data = JSON.parse(raw);
+                if (data && Array.isArray(data.entries) && data.entries.length > 0) {
+                    renderMaj(data.entries);
+                    if (Date.now() - data.ts > CACHE_TTL) loadMajFromSheet();
+                    return;
+                }
+            }
+        } catch (e) {}
+
+        majLoading.style.display = 'block';
+        loadMajFromSheet();
+    }
+
+    function loadMajFromSheet() {
+        const old = document.getElementById('gsheet-maj');
+        if (old) old.remove();
+
+        const script = document.createElement('script');
+        script.id = 'gsheet-maj';
+        script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:majCallback&sheet=MAJ`;
+        script.onerror = function() {
+            this.remove();
+            majLoading.textContent = 'Erreur de chargement des mises \u00e0 jour.';
+        };
+        document.body.appendChild(script);
+    }
+
+    function majTypeClass(type) {
+        const t = type.toUpperCase();
+        if (t.includes('AJOUT')) return 'maj-type-ajout';
+        if (t.includes('MISE') || t.includes('MAJ')) return 'maj-type-maj';
+        return 'maj-type-other';
+    }
+
+    function renderMaj(entries) {
+        majLoaded = true;
+        majLoading.style.display = 'none';
+
+        const groups = [];
+        let lastDate = null;
+        for (const e of entries) {
+            if (e.date !== lastDate) {
+                groups.push({ date: e.date, items: [] });
+                lastDate = e.date;
+            }
+            groups[groups.length - 1].items.push(e);
+        }
+
+        const fragment = document.createDocumentFragment();
+        for (const group of groups) {
+            const div = document.createElement('div');
+            div.className = 'maj-date-group';
+
+            const dateEl = document.createElement('div');
+            dateEl.className = 'maj-date';
+            dateEl.textContent = group.date;
+            div.appendChild(dateEl);
+
+            for (const item of group.items) {
+                const row = document.createElement('div');
+                row.className = 'maj-entry';
+
+                const badge = document.createElement('span');
+                badge.className = 'maj-type ' + majTypeClass(item.type);
+                badge.textContent = item.type;
+                row.appendChild(badge);
+
+                const gamesSpan = document.createElement('span');
+                gamesSpan.className = 'maj-games';
+                gamesSpan.textContent = item.games;
+                row.appendChild(gamesSpan);
+
+                div.appendChild(row);
+            }
+
+            fragment.appendChild(div);
+        }
+
+        majContent.innerHTML = '';
+        majContent.appendChild(fragment);
+    }
+
+    // ── Informations tab ────────────────────────────────────
+    function infoCallback(response) {
+        const scriptEl = document.getElementById('gsheet-info');
+        if (scriptEl) scriptEl.remove();
+
+        try {
+            const rows = response.table.rows;
+            const lines = [];
+            for (const row of rows) {
+                const c = row.c;
+                lines.push(c && c[0] ? cellVal(c[0]) : '');
+            }
+
+            try {
+                localStorage.setItem(INFO_CACHE_KEY, JSON.stringify({ ts: Date.now(), lines: lines }));
+            } catch (e) {}
+
+            renderInfo(lines);
+        } catch (err) {
+            infoLoading.textContent = 'Erreur de chargement des informations.';
+        }
+    }
+    window.infoCallback = infoCallback;
+
+    function fetchInfo() {
+        try {
+            const raw = localStorage.getItem(INFO_CACHE_KEY);
+            if (raw) {
+                const data = JSON.parse(raw);
+                if (data && Array.isArray(data.lines) && data.lines.length > 0) {
+                    renderInfo(data.lines);
+                    if (Date.now() - data.ts > CACHE_TTL) loadInfoFromSheet();
+                    return;
+                }
+            }
+        } catch (e) {}
+
+        infoLoading.style.display = 'block';
+        loadInfoFromSheet();
+    }
+
+    function loadInfoFromSheet() {
+        const old = document.getElementById('gsheet-info');
+        if (old) old.remove();
+
+        const script = document.createElement('script');
+        script.id = 'gsheet-info';
+        script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:infoCallback&sheet=Informations`;
+        script.onerror = function() {
+            this.remove();
+            infoLoading.textContent = 'Erreur de chargement des informations.';
+        };
+        document.body.appendChild(script);
+    }
+
+    function isUrl(str) {
+        return /^https?:\/\/\S+$/i.test(str.trim());
+    }
+
+    const SVG_ICONS = {
+        gamepad: '<svg viewBox="0 0 24 24"><path d="M6 9h2v2H6zm4 0h2v2h-2zm10-4H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 12H4V7h16v10zm-4-6h2v2h-2z"/></svg>',
+        search: '<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>',
+        filter: '<svg viewBox="0 0 24 24"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>',
+        cache: '<svg viewBox="0 0 24 24"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 1.45-.39 2.81-1.06 3.98l1.46 1.46A9.94 9.94 0 0 0 22 12c0-5.18-3.95-9.45-9-9.95zM12 20c-4.42 0-8-3.58-8-8 0-3.63 2.42-6.69 5.73-7.67l-.37-1.96A9.996 9.996 0 0 0 2 12c0 5.52 4.47 10 10 10 2.25 0 4.33-.75 6-2.02l-1.44-1.44A7.96 7.96 0 0 1 12 20z"/><path d="M11 7h2v6h-2zm0 8h2v2h-2z"/></svg>',
+        image: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',
+        info: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>',
+        link: '<svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>',
+        discord: '<svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.11 13.11 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>',
+        forum: '<svg viewBox="0 0 24 24"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg>',
+        extension: '<svg viewBox="0 0 24 24"><path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/></svg>'
+    };
+
+    const LINK_META = {
+        'discord:': { icon: 'discord', name: 'Discord', color: '#5865F2', desc: 'Rejoindre la communaut\u00e9' },
+        'thread f95:': { icon: 'forum', name: 'Thread F95', color: '#e94560', desc: 'Forum de discussion' },
+        'extension f95 france:': { icon: 'extension', name: 'Extension F95', color: '#fdba74', desc: 'Plugin navigateur' }
+    };
+
+    function renderInfo(lines) {
+        infoLoaded = true;
+        infoLoading.style.display = 'none';
+
+        const links = [];
+        let i = 1;
+        while (i < lines.length) {
+            const line = lines[i];
+            if (line && line.endsWith(':') && i + 1 < lines.length && isUrl(lines[i + 1])) {
+                links.push({ label: line, url: lines[i + 1].trim() });
+                i += 2;
+            } else {
+                i++;
+            }
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        const hero = document.createElement('div');
+        hero.className = 'info-hero';
+        hero.innerHTML = `
+            <div class="info-hero-icon">${SVG_ICONS.gamepad}</div>
+            <h2><span>Game Translate</span> FR</h2>
+            <div class="info-hero-sub">Interface web pour le tableur communautaire de traductions fran\u00e7aises de jeux.</div>
+        `;
+        fragment.appendChild(hero);
+
+        const about = document.createElement('div');
+        about.className = 'info-about';
+        about.innerHTML = `
+            <div class="info-about-title">${SVG_ICONS.info} \u00c0 propos</div>
+            Cette page est une interface web statique qui r\u00e9cup\u00e8re les donn\u00e9es du Google Sheet communautaire Game Translate FR et les affiche sous forme de fiches interactives. Elle permet une visualisation et une navigation am\u00e9lior\u00e9es par rapport au tableur\u00a0: recherche instantan\u00e9e, filtres par statut, moteur et type de traduction, tri, chargement d\u2019images et mise en cache locale pour un acc\u00e8s plus rapide.
+        `;
+        fragment.appendChild(about);
+
+        const features = [
+            { icon: 'search', title: 'Recherche', desc: 'Trouvez un jeu par nom, tag ou traducteur', bg: '#0d6efd22', fill: '#6ea8fe' },
+            { icon: 'filter', title: 'Filtres', desc: 'Par statut, moteur de jeu et type de traduction', bg: '#6f42c122', fill: '#b197fc' },
+            { icon: 'image', title: 'Visuels', desc: 'Aper\u00e7u des jeux avec chargement optimis\u00e9', bg: '#e9456022', fill: '#e94560' },
+            { icon: 'cache', title: 'Cache local', desc: 'Affichage instantan\u00e9 d\u00e8s la 2e visite', bg: '#19875422', fill: '#63d99a' }
+        ];
+        const featGrid = document.createElement('div');
+        featGrid.className = 'info-features';
+        for (const f of features) {
+            const card = document.createElement('div');
+            card.className = 'info-feature';
+            card.innerHTML = `
+                <div class="info-feature-icon" style="background:${f.bg}">
+                    <svg viewBox="0 0 24 24" style="fill:${f.fill}">${SVG_ICONS[f.icon].match(/<svg[^>]*>([\s\S]*)<\/svg>/)[1]}</svg>
+                </div>
+                <div class="info-feature-title">${f.title}</div>
+                <div class="info-feature-desc">${f.desc}</div>
+            `;
+            featGrid.appendChild(card);
+        }
+        fragment.appendChild(featGrid);
+
+        if (links.length > 0) {
+            const sectionTitle = document.createElement('div');
+            sectionTitle.className = 'info-section-title';
+            sectionTitle.innerHTML = `${SVG_ICONS.link} Liens utiles`;
+            fragment.appendChild(sectionTitle);
+
+            const linksGrid = document.createElement('div');
+            linksGrid.className = 'info-links-grid';
+
+            for (const lnk of links) {
+                const meta = LINK_META[lnk.label.toLowerCase()] || { icon: 'link', name: lnk.label.replace(/:$/, ''), color: '#888', desc: '' };
+                const a = document.createElement('a');
+                a.className = 'info-link-card';
+                a.href = lnk.url;
+                a.target = '_blank';
+                a.rel = 'noopener';
+
+                const iconSvgInner = SVG_ICONS[meta.icon].match(/<svg[^>]*>([\s\S]*)<\/svg>/)[1];
+                a.innerHTML = `
+                    <div class="info-link-icon" style="background:${meta.color}22">
+                        <svg viewBox="0 0 24 24" style="fill:${meta.color}">${iconSvgInner}</svg>
+                    </div>
+                    <div class="info-link-text">
+                        <div class="info-link-name">${escapeHtml(meta.name)}</div>
+                        <div class="info-link-url">${meta.desc || escapeHtml(lnk.url)}</div>
+                    </div>
+                `;
+                linksGrid.appendChild(a);
+            }
+            fragment.appendChild(linksGrid);
+        }
+
+        infoContent.innerHTML = '';
+        infoContent.appendChild(fragment);
+    }
+
+    // ── Startup ─────────────────────────────────────────────
+    (function init() {
+        const cached = loadCache();
+        if (cached && cached.games.length > 0) {
+            GAMES_DATA = cached.games;
+            dataSource = 'cache';
+            populateFilters();
+            // #7: Restore filters before first render
+            restoreFiltersState();
+            render();
+            if (Date.now() - cached.ts > CACHE_TTL) {
+                fetchGames(true);
+            }
+        } else {
+            fetchGames();
+        }
+
+        // #6: Read hash on startup to open the right tab
+        const hash = location.hash.replace('#', '');
+        if (hash === 'maj' || hash === 'info') {
+            switchTab(hash, false);
+        }
+    })();
+    </script>
+</body>
+</html>
