@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Dernière mise à jour : 06/03/2026 09:00:33 -->
+<!-- Dernière mise à jour : 06/03/2026 09:04:04 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -894,12 +894,14 @@
 
     let GAMES_DATA = [];
     let MAJ_ENTRIES = [];
+    let TRAD_DATA = [];
     let RECENT_GAMES_SET = new Set();
     let ACTIVE_TAGS    = new Set();
     let lastMajDateMap = new Map();
     let modalNavList = [];
     let modalNavIdx = 0;
     let listMode = false;
+    let tradLoaded = false;
     let dataSource = 'cache';
     let lastSyncLabel = '';
 
@@ -1176,6 +1178,8 @@
             hideSkeleton();
             hideProgress();
             render();
+            // Si l'onglet trad était en attente des données
+            if (document.getElementById('tradPanel').classList.contains('visible') && !tradLoaded) fetchTrad();
         } catch (err) {
             hideProgress();
             if (!skipCacheDisplay) {
@@ -1940,7 +1944,7 @@
     }
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeGameModal();
+        if (e.key === 'Escape') { closeGameModal(); closeTradModal(); }
         if (e.key === 'ArrowLeft'  && document.getElementById('game-modal').classList.contains('visible')) {
             if (modalNavIdx > 0) { modalNavIdx--; openGameModal(modalNavIdx); }
         }
@@ -1949,14 +1953,144 @@
         }
     });
 
+    // ── Onglet Traducteurs / Relecteurs ──────────────────────────────────────
+
+    function fetchTrad() {
+        // Reconstruction depuis GAMES_DATA (pas d'API dédiée en mode statique)
+        if (!GAMES_DATA.length) {
+            // Les jeux ne sont pas encore chargés — on retente après fetchGames
+            document.getElementById('tradLoading').textContent = 'En attente des données jeux...';
+            return;
+        }
+        const tradMap = new Map();
+        for (const g of GAMES_DATA) {
+            if (g.traducteur) {
+                const nom = g.traducteur.trim();
+                if (!tradMap.has(nom)) tradMap.set(nom, { nom, nb_trad: 0, nb_relecture: 0 });
+                tradMap.get(nom).nb_trad++;
+            }
+            if (g.relecteur) {
+                g.relecteur.split(',').forEach(r => {
+                    const nom = r.trim();
+                    if (!nom) return;
+                    if (!tradMap.has(nom)) tradMap.set(nom, { nom, nb_trad: 0, nb_relecture: 0 });
+                    tradMap.get(nom).nb_relecture++;
+                });
+            }
+        }
+        TRAD_DATA = [...tradMap.values()].sort((a, b) =>
+            (b.nb_trad + b.nb_relecture) - (a.nb_trad + a.nb_relecture));
+        document.getElementById('tradLoading').style.display = 'none';
+        renderTrad();
+        tradLoaded = true;
+    }
+
+    function renderTrad(query) {
+        const q = (query || '').toLowerCase().trim();
+        const filtered = q ? TRAD_DATA.filter(t => (t.nom || '').toLowerCase().includes(q)) : TRAD_DATA;
+        const grid = document.getElementById('tradGrid');
+        grid.innerHTML = '';
+        if (!filtered.length) {
+            grid.innerHTML = '<div style="color:#666;padding:40px 0;text-align:center;grid-column:1/-1">Aucun contributeur trouvé</div>';
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        for (const t of filtered) {
+            const card = document.createElement('div');
+            card.className = 'trad-card';
+            card.innerHTML = `
+                <div class="trad-card-name">${escapeHtml(t.nom)}</div>
+                <div class="trad-card-stats">
+                    <div class="trad-stat">
+                        <div class="trad-stat-value">${t.nb_trad || 0}</div>
+                        <div class="trad-stat-label">Traductions</div>
+                    </div>
+                    <div class="trad-stat">
+                        <div class="trad-stat-value">${t.nb_relecture || 0}</div>
+                        <div class="trad-stat-label">Relectures</div>
+                    </div>
+                </div>`;
+            card.addEventListener('click', () => openTradModal(t));
+            fragment.appendChild(card);
+        }
+        grid.appendChild(fragment);
+    }
+
+    function openTradModal(trad) {
+        const nom = trad.nom;
+        const jeuxTrad   = GAMES_DATA.filter(g => g.traducteur === nom);
+        const jeuxRelect = GAMES_DATA.filter(g => g.relecteur &&
+            g.relecteur.split(',').map(s => s.trim()).includes(nom));
+
+        document.getElementById('trad-modal-name').textContent = nom;
+
+        document.getElementById('trad-modal-stats').innerHTML = `
+            <div class="trad-modal-stat">
+                <div class="trad-modal-stat-value">${trad.nb_trad || jeuxTrad.length}</div>
+                <div class="trad-modal-stat-label">Traductions</div>
+            </div>
+            <div class="trad-modal-stat">
+                <div class="trad-modal-stat-value">${trad.nb_relecture || jeuxRelect.length}</div>
+                <div class="trad-modal-stat-label">Relectures</div>
+            </div>`;
+
+        const metaEl = document.getElementById('trad-modal-meta');
+        metaEl.innerHTML = '';
+        metaEl.style.display = 'none';
+
+        const gamesEl = document.getElementById('trad-modal-games');
+        let gamesHtml = '';
+
+        if (jeuxTrad.length) {
+            gamesHtml += `<div class="trad-games-section">
+                <div class="trad-games-title">Jeux traduits (${jeuxTrad.length})</div>`;
+            for (const g of jeuxTrad) {
+                const href = g.game_url || '#';
+                gamesHtml += `<a class="trad-game-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">
+                    <span>${escapeHtml(g.nom)}</span>
+                    <span class="trad-game-statut">${escapeHtml(g.statut || '')}</span>
+                </a>`;
+            }
+            gamesHtml += '</div>';
+        }
+
+        if (jeuxRelect.length) {
+            gamesHtml += `<div class="trad-games-section">
+                <div class="trad-games-title">Jeux relus (${jeuxRelect.length})</div>`;
+            for (const g of jeuxRelect) {
+                const href = g.game_url || '#';
+                gamesHtml += `<a class="trad-game-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">
+                    <span>${escapeHtml(g.nom)}</span>
+                    <span class="trad-game-statut">${escapeHtml(g.statut || '')}</span>
+                </a>`;
+            }
+            gamesHtml += '</div>';
+        }
+
+        if (!gamesHtml) {
+            gamesHtml = '<div class="trad-modal-empty">Aucun jeu associé trouvé dans les données.</div>';
+        }
+        gamesEl.innerHTML = gamesHtml;
+
+        document.getElementById('trad-modal').classList.add('visible');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeTradModal() {
+        document.getElementById('trad-modal').classList.remove('visible');
+        document.body.style.overflow = '';
+    }
+
     // ── Navigation par onglets ────────────────────────────────────────────────
 
     const tabJeux    = document.getElementById('tabJeux');
     const tabMaj     = document.getElementById('tabMaj');
     const tabInfo    = document.getElementById('tabInfo');
+    const tabTrad    = document.getElementById('tabTrad');
     const tabStats   = document.getElementById('tabStats');
     const majPanel   = document.getElementById('majPanel');
     const infoPanel  = document.getElementById('infoPanel');
+    const tradPanel  = document.getElementById('tradPanel');
     const statsPanel = document.getElementById('statsPanel');
     const infoLoading= document.getElementById('infoLoading');
     const infoContent= document.getElementById('infoContent');
@@ -1970,12 +2104,14 @@
         tabJeux.classList.remove('active');
         tabMaj.classList.remove('active');
         tabInfo.classList.remove('active');
+        tabTrad.classList.remove('active');
         tabStats.classList.remove('active');
         grid.style.display      = 'none';
         controlsEl.style.display= 'none';
         stats.style.display     = 'none';
         majPanel.classList.remove('visible');
         infoPanel.classList.remove('visible');
+        tradPanel.classList.remove('visible');
         statsPanel.classList.remove('visible');
 
         if (tab === 'maj') {
@@ -1986,6 +2122,10 @@
             tabInfo.classList.add('active');
             infoPanel.classList.add('visible');
             if (!infoLoaded) fetchInfo();
+        } else if (tab === 'trad') {
+            tabTrad.classList.add('active');
+            tradPanel.classList.add('visible');
+            if (!tradLoaded) fetchTrad();
         } else if (tab === 'stats') {
             tabStats.classList.add('active');
             statsPanel.classList.add('visible');
@@ -2004,9 +2144,10 @@
         }
     }
 
-    tabJeux.addEventListener('click', () => switchTab('jeux'));
-    tabMaj.addEventListener ('click', () => switchTab('maj'));
-    tabInfo.addEventListener('click', () => switchTab('info'));
+    tabJeux.addEventListener('click',  () => switchTab('jeux'));
+    tabMaj.addEventListener ('click',  () => switchTab('maj'));
+    tabInfo.addEventListener('click',  () => switchTab('info'));
+    tabTrad.addEventListener('click',  () => switchTab('trad'));
     tabStats.addEventListener('click', () => switchTab('stats'));
     majPanel.addEventListener('click', (e) => {
         const el = e.target.closest('.game-link');
@@ -2093,6 +2234,13 @@
 
     filterTranslator.addEventListener('change', render);
 
+    // Trad search
+    let tradSearchTimer;
+    document.getElementById('tradSearch').addEventListener('input', e => {
+        clearTimeout(tradSearchTimer);
+        tradSearchTimer = setTimeout(() => renderTrad(e.target.value), 200);
+    });
+
     // ── Démarrage ─────────────────────────────────────────────────────────────
 
     (function init() {
@@ -2122,7 +2270,7 @@
         }
 
         const hash = location.hash.replace('#', '');
-        if (hash === 'maj' || hash === 'info' || hash === 'stats') switchTab(hash, false);
+        if (['maj', 'info', 'trad', 'stats'].includes(hash)) switchTab(hash, false);
     })();
     </script>
 
