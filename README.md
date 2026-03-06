@@ -50,9 +50,22 @@ Elles sont exportées au format CSV après chaque synchronisation :
 
 ---
 
-## 🤝 Contribution
+## 🔗 Liens communautaires
 
-Ce projet s'appuie sur le travail bénévole des traducteurs de la communauté Game Translate FR. Un grand merci à tous ceux qui contribuent à rendre ces jeux accessibles en français.
+| Lien | URL |
+|---|---|
+| 🎮 **Thread F95Zone** | [Liste des jeux et traductions FR](https://f95zone.to/threads/liste-des-jeux-et-traductions-fr-list-game-and-translats-french.71684/) |
+| 💬 **Discord** | [discord.f95zone.to](https://discord.f95zone.to/) |
+
+> Le lien Thread F95 est fixe et indépendant du contenu du Google Sheet.
+
+---
+
+## 🤝 Crédits & Contribution
+
+Ce projet est basé sur le travail de **[K3652](https://f95zone.to/members/k3652.1657068/)**, créateur du tableur Google Sheets original.
+
+Il s'appuie également sur le travail bénévole de tous les traducteurs de la communauté Game Translate FR. Un grand merci à tous ceux qui contribuent à rendre ces jeux accessibles en français.
 
 ---
 
