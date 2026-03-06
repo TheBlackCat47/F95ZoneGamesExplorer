@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Dernière mise à jour : 06/03/2026 01:45:35 -->
+<!-- Dernière mise à jour : 06/03/2026 01:53:23 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -1201,7 +1201,8 @@
 
     // Overrides d'URLs (prennent le dessus sur les valeurs du Google Sheet)
     const URL_OVERRIDES = {
-        'discord:': 'https://discord.f95zone.to/'
+        'discord:':    'https://discord.f95zone.to/',
+        'thread f95:': 'https://f95zone.to/threads/liste-des-jeux-et-traductions-fr-list-game-and-translats-french.71684/'
     };
 
     function renderInfo(lines) {
@@ -1235,7 +1236,10 @@
         about.className = 'info-about';
         about.innerHTML = `
             <div class="info-about-title">${SVG_ICONS.info} À propos</div>
-            Game Translate FR est une interface communautaire dédiée aux traductions françaises de jeux. Les données sont collectées et traitées automatiquement à intervalles réguliers, puis servies via une API afin de garantir un affichage toujours à jour. La navigation est enrichie d'une recherche instantanée, de filtres et d'un affichage visuel optimisé.
+            Game Translate FR est une interface communautaire dédiée aux traductions françaises de jeux. Ce projet est basé sur le travail de
+            <a href="https://f95zone.to/members/k3652.1657068/" target="_blank" rel="noopener" style="color:#e94560;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">K3652</a>,
+            créateur du tableur Google Sheets original.
+            Les données sont collectées et traitées automatiquement à intervalles réguliers, puis servies via une API afin de garantir un affichage toujours à jour. La navigation est enrichie d'une recherche instantanée, de filtres et d'un affichage visuel optimisé.
         `;
         fragment.appendChild(about);
 
