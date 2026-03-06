@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Dernière mise à jour : 06/03/2026 02:52:44 -->
+<!-- Dernière mise à jour : 06/03/2026 03:43:51 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -326,6 +326,46 @@
         .maj-type-maj   { background: #0d6efd22; color: #6ea8fe; border: 1px solid #0d6efd44; }
         .maj-type-other { background: #6f42c122; color: #b197fc; border: 1px solid #6f42c144; }
         .maj-games { color: #bbb; }
+        .game-link {
+            color: #6ea8fe; cursor: pointer;
+            border-bottom: 1px dotted #6ea8fe55;
+            transition: color .15s, border-color .15s;
+        }
+        .game-link:hover { color: #93c5fd; border-bottom-color: #93c5fd; }
+
+        /* ── Modal jeu ── */
+        .modal-overlay {
+            display:none; position:fixed; inset:0; z-index:500;
+            background:rgba(0,0,0,.78);
+            align-items:center; justify-content:center; padding:20px;
+        }
+        .modal-overlay.visible { display:flex; }
+        .modal-box {
+            background:#1a1a2e; border:1px solid #333; border-radius:12px;
+            max-width:460px; width:100%; overflow:hidden; position:relative;
+            box-shadow:0 24px 64px rgba(0,0,0,.7);
+            animation:modal-pop .18s ease;
+        }
+        @keyframes modal-pop { from{transform:scale(.94);opacity:0} to{transform:scale(1);opacity:1} }
+        .modal-close {
+            position:absolute; top:10px; right:10px; z-index:2;
+            background:rgba(0,0,0,.55); border:none; color:#aaa;
+            width:28px; height:28px; border-radius:50%; cursor:pointer;
+            font-size:.85rem; display:flex; align-items:center; justify-content:center;
+            transition:background .15s, color .15s;
+        }
+        .modal-close:hover { background:#e94560; color:#fff; }
+        .modal-img { width:100%; height:180px; background:#111; overflow:hidden; }
+        .modal-img img { width:100%; height:100%; object-fit:cover; display:block; }
+        .modal-body { padding:16px; }
+        .modal-title { font-size:1.05rem; font-weight:700; margin-bottom:10px; }
+        .modal-title a { color:#e94560; text-decoration:none; }
+        .modal-title a:hover { text-decoration:underline; }
+        .modal-meta { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+        .modal-info { font-size:.82rem; color:#aaa; line-height:1.7; margin-bottom:12px; }
+        .modal-info span { color:#ccc; }
+        .modal-links { display:flex; gap:8px; flex-wrap:wrap; }
+        .modal-tags { margin-top:8px; font-size:.72rem; color:#555; line-height:1.5; }
 
         /* Info panel */
         .info-panel {
@@ -724,6 +764,7 @@
             }));
             dataSource = 'csv';
             saveCache(GAMES_DATA);
+            buildGameIndex(GAMES_DATA);
 
             const savedStatut   = filterStatut.value;
             const savedType     = filterType.value;
@@ -1112,7 +1153,7 @@
 
                 const gamesSpan     = document.createElement('span');
                 gamesSpan.className = 'maj-games';
-                gamesSpan.textContent = item.games;
+                gamesSpan.innerHTML = annotateGames(item.games);
                 row.appendChild(gamesSpan);
 
                 div.appendChild(row);
@@ -1297,6 +1338,101 @@
         infoContent.appendChild(fragment);
     }
 
+    // ── Index jeux → liens cliquables dans MAJ ────────────────────────────────
+
+    let gamesMap  = new Map(); // nom.toLowerCase() → index dans GAMES_DATA
+    let gameRegex = null;
+
+    function buildGameIndex(games) {
+        gamesMap = new Map();
+        for (let i = 0; i < games.length; i++) {
+            if (games[i].nom) gamesMap.set(games[i].nom.toLowerCase(), i);
+        }
+        // Noms triés du plus long au plus court → évite les correspondances partielles
+        const escaped = [...gamesMap.keys()]
+            .filter(n => n.length >= 3)
+            .sort((a, b) => b.length - a.length)
+            .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        gameRegex = escaped.length ? new RegExp(`(${escaped.join('|')})`, 'gi') : null;
+    }
+
+    function annotateGames(text) {
+        if (!text || !gameRegex) return escapeHtml(text || '');
+        let result = '', last = 0;
+        gameRegex.lastIndex = 0;
+        let m;
+        while ((m = gameRegex.exec(text)) !== null) {
+            result += escapeHtml(text.slice(last, m.index));
+            const idx = gamesMap.get(m[0].toLowerCase());
+            result += idx !== undefined
+                ? `<span class="game-link" data-idx="${idx}">${escapeHtml(m[0])}</span>`
+                : escapeHtml(m[0]);
+            last = m.index + m[0].length;
+        }
+        return result + escapeHtml(text.slice(last));
+    }
+
+    function openGameModal(idx) {
+        const game = GAMES_DATA[idx];
+        if (!game) return;
+
+        const imgEl   = document.getElementById('modal-img');
+        const titleEl = document.getElementById('modal-title');
+        const metaEl  = document.getElementById('modal-meta');
+        const infoEl  = document.getElementById('modal-info');
+        const linksEl = document.getElementById('modal-links');
+        const tagsEl  = document.getElementById('modal-tags');
+
+        if (game.image_url) {
+            imgEl.innerHTML = `<img src="${escapeHtml(game.image_url)}" referrerpolicy="no-referrer" alt="${escapeHtml(game.nom)}">`;
+            imgEl.style.display = '';
+        } else {
+            imgEl.innerHTML = ''; imgEl.style.display = 'none';
+        }
+
+        titleEl.innerHTML = game.game_url
+            ? `<a href="${escapeHtml(game.game_url)}" target="_blank" rel="noopener">${escapeHtml(game.nom)}</a>`
+            : escapeHtml(game.nom);
+
+        let metaHtml = `<span class="badge ${statutBadgeClass(game.statut)}">${escapeHtml(game.statut||'')}</span>`;
+        if (game.type_moteur) metaHtml += `<span class="badge badge-type">${escapeHtml(game.type_moteur)}</span>`;
+        if (game.type_trad)   metaHtml += `<span class="badge badge-trad-type">${escapeHtml(game.type_trad)}</span>`;
+        metaEl.innerHTML = metaHtml;
+
+        let infoHtml = `Version: <span>${escapeHtml(game.version||'—')}</span> | Trad: <span>${escapeHtml(game.trad_version||'—')}</span>`;
+        if (game.traducteur) {
+            const name = escapeHtml(game.traducteur);
+            infoHtml += `<br>Traducteur: ${game.translator_url
+                ? `<a href="${escapeHtml(game.translator_url)}" target="_blank" rel="noopener" style="color:#6ea8fe;text-decoration:none">${name}</a>`
+                : `<span>${name}</span>`}`;
+        }
+        if (game.relecteur) infoHtml += ` | Relecteur: <span>${escapeHtml(game.relecteur)}</span>`;
+        infoEl.innerHTML = infoHtml;
+        tagsEl.textContent = game.tags || '';
+
+        let linksHtml = '';
+        if (game.game_url) {
+            linksHtml += `<a class="btn btn-game" href="${escapeHtml(game.game_url)}" target="_blank" rel="noopener">${PLATFORM_LOGOS.f95}<span>Page F95</span></a>`;
+        }
+        if (game.trad_url) {
+            const p = getTradPlatform(game.trad_url);
+            linksHtml += `<a class="btn btn-trad" href="${escapeHtml(game.trad_url)}" target="_blank" rel="noopener" style="background:${p.color}">${PLATFORM_LOGOS[p.logo]}<span>Traduction</span></a>`;
+        } else if (game.lien_trad && game.lien_trad !== 'Traduction' && game.lien_trad !== 'Patch') {
+            linksHtml += `<span class="btn btn-integree">${escapeHtml(game.lien_trad)}</span>`;
+        }
+        linksEl.innerHTML = linksHtml;
+
+        document.getElementById('game-modal').classList.add('visible');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeGameModal() {
+        document.getElementById('game-modal').classList.remove('visible');
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGameModal(); });
+
     // ── Navigation par onglets ────────────────────────────────────────────────
 
     const tabJeux    = document.getElementById('tabJeux');
@@ -1347,6 +1483,10 @@
     tabJeux.addEventListener('click', () => switchTab('jeux'));
     tabMaj.addEventListener ('click', () => switchTab('maj'));
     tabInfo.addEventListener('click', () => switchTab('info'));
+    majPanel.addEventListener('click', (e) => {
+        const el = e.target.closest('.game-link');
+        if (el) openGameModal(parseInt(el.dataset.idx));
+    });
     window.addEventListener('hashchange', () => {
         const h = location.hash.replace('#', '') || 'jeux';
         switchTab(h, false);
@@ -1388,6 +1528,7 @@
         if (cached && cached.games.length > 0) {
             GAMES_DATA = cached.games;
             dataSource = 'cache';
+            buildGameIndex(GAMES_DATA);
             populateFilters();
             restoreFiltersState();
             render();
@@ -1400,6 +1541,21 @@
         if (hash === 'maj' || hash === 'info') switchTab(hash, false);
     })();
     </script>
+    <!-- Modal jeu (depuis MAJ) -->
+    <div class="modal-overlay" id="game-modal" onclick="if(event.target===this)closeGameModal()">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeGameModal()">✕</button>
+            <div class="modal-img" id="modal-img"></div>
+            <div class="modal-body">
+                <div class="modal-title" id="modal-title"></div>
+                <div class="modal-meta"  id="modal-meta"></div>
+                <div class="modal-info"  id="modal-info"></div>
+                <div class="modal-links" id="modal-links"></div>
+                <div class="modal-tags"  id="modal-tags"></div>
+            </div>
+        </div>
+    </div>
+
     <script data-goatcounter="https://theblackcat47.goatcounter.com/count"
             async src="//gc.zgo.at/count.js"></script>
 </body>
