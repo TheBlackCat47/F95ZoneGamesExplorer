@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Dernière mise à jour : 06/03/2026 03:43:51 -->
+<!-- Dernière mise à jour : 06/03/2026 07:54:42 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -549,9 +549,75 @@
             pointer-events: auto;
         }
         .back-to-top:hover { transform: scale(1.1); }
+
+        /* ── Progress bar ── */
+        #pgbar { position:fixed; top:0; left:0; width:0; height:3px;
+                 background:linear-gradient(90deg,#6ea8fe,#a78bfa);
+                 z-index:9999; transition:width .3s ease,opacity .4s ease; pointer-events:none; }
+
+        /* ── Skeleton loading ── */
+        @keyframes sk-shine { to { background-position: -200% 0; } }
+        .skeleton-grid { display:contents; }
+        .sk-card { background:#1e2736; border-radius:10px; overflow:hidden; }
+        .sk-img  { height:160px; background:linear-gradient(90deg,#243047 33%,#2e3f5a 50%,#243047 66%);
+                   background-size:200%; animation:sk-shine 1.4s infinite; }
+        .sk-line { height:12px; border-radius:6px; margin:8px 12px;
+                   background:linear-gradient(90deg,#243047 33%,#2e3f5a 50%,#243047 66%);
+                   background-size:200%; animation:sk-shine 1.4s infinite; }
+        .sk-line.short { width:55%; }
+
+        /* ── Card fade-in ── */
+        @keyframes cardFadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+        .card { animation: cardFadeIn .25s ease both; }
+
+        /* ── Tag chips ── */
+        .tag-chip { display:inline-block; background:#1e3a5f33; border:1px solid #6ea8fe44;
+                    color:#93c5fd; border-radius:4px; padding:1px 6px; margin:2px;
+                    font-size:.72rem; cursor:pointer; transition:background .15s; }
+        .tag-chip:hover { background:#1e3a5f88; }
+
+        /* ── Nouveau badge ── */
+        .badge-new { background:#0f5132; color:#75b798; border:1px solid #20c99733; font-size:.68rem; }
+
+        /* ── List mode ── */
+        .list-mode { grid-template-columns: 1fr !important; }
+        .list-mode .card { display:flex; flex-direction:row; max-height:110px; }
+        .list-mode .card-img-wrap { width:80px; min-width:80px; height:110px; flex-shrink:0; }
+        .list-mode .card-tags { display:none; }
+        .list-mode .card-links { flex-shrink:0; }
+
+        /* ── MAJ search ── */
+        .maj-search-bar { padding:8px 0 4px; }
+        #majSearch { width:100%; max-width:400px; padding:7px 12px; border-radius:8px;
+                     background:#1e2736; border:1px solid #334155; color:#e2e8f0; font-size:.9rem; }
+
+        /* ── Modal nav ── */
+        .modal-nav { position:absolute; top:50%; transform:translateY(-50%); background:#1e2736cc;
+                     border:1px solid #334155; color:#e2e8f0; font-size:1.8rem; border-radius:50%;
+                     width:38px; height:38px; cursor:pointer; z-index:10; display:flex;
+                     align-items:center; justify-content:center; }
+        .modal-prev { left:6px; } .modal-next { right:6px; }
+        .modal-nav:disabled { opacity:.25; cursor:default; }
+
+        /* ── Modal history ── */
+        .modal-history { margin-top:14px; border-top:1px solid #334155; padding-top:10px; }
+        .modal-history-title { font-size:.78rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+        .modal-history-entry { display:flex; gap:8px; align-items:baseline; font-size:.82rem; padding:3px 0; border-bottom:1px solid #1e273622; }
+        .modal-history-entry .mh-date { color:#64748b; flex-shrink:0; }
+
+        /* ── View toggle button ── */
+        #viewToggle { background:none; border:1px solid #444; color:#aaa; padding:6px 10px;
+                      border-radius:6px; cursor:pointer; font-size:0.85rem;
+                      transition:border-color 0.2s, color 0.2s; }
+        #viewToggle:hover { border-color:#e94560; color:#e94560; }
+
+        /* ── Info button on card ── */
+        .btn-info { background:none; border:1px solid #334155; color:#6ea8fe; cursor:pointer; }
+        .btn-info:hover { background:#1e3a5f33; opacity:1; }
     </style>
 </head>
 <body>
+    <div id="pgbar"></div>
     <header>
         <div class="header-top">
             <div class="header-brand">
@@ -579,22 +645,27 @@
             <select id="filterTradType">
                 <option value="">Toutes traductions</option>
             </select>
+            <select id="filterTranslator"><option value="">Tous les traducteurs</option></select>
             <select id="sortBy">
                 <option value="nom">Tri: Nom A-Z</option>
                 <option value="nom_desc">Tri: Nom Z-A</option>
                 <option value="statut">Tri: Statut</option>
             </select>
+            <button id="viewToggle" title="Vue liste/grille">⊞</button>
             <button class="reset-btn" id="resetBtn" title="R&eacute;initialiser tous les filtres">R&eacute;initialiser</button>
         </div>
         <div class="stats" id="stats"></div>
     </header>
 
     <div class="grid" id="grid">
-        <div id="loading">Chargement des jeux...</div>
+        <div id="loading" class="skeleton-grid" aria-hidden="true"></div>
         <div id="error"></div>
     </div>
 
     <div class="maj-panel" id="majPanel">
+        <div class="maj-search-bar">
+            <input type="text" id="majSearch" placeholder="Filtrer les mises à jour...">
+        </div>
         <div class="maj-loading" id="majLoading">Chargement des mises &agrave; jour...</div>
         <div id="majContent"></div>
     </div>
@@ -622,6 +693,27 @@
             </div>
         </div>
     </template>
+
+    <!-- Modal jeu -->
+    <div class="modal-overlay" id="game-modal" onclick="if(event.target===this)closeGameModal()">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeGameModal()">✕</button>
+            <button class="modal-nav modal-prev" id="modalPrev" title="Précédent">‹</button>
+            <button class="modal-nav modal-next" id="modalNext" title="Suivant">›</button>
+            <div class="modal-img" id="modal-img"></div>
+            <div class="modal-body">
+                <div class="modal-title" id="modal-title"></div>
+                <div class="modal-meta"  id="modal-meta"></div>
+                <div class="modal-info"  id="modal-info"></div>
+                <div class="modal-links" id="modal-links"></div>
+                <div class="modal-tags"  id="modal-tags"></div>
+                <div class="modal-history" id="modal-history">
+                    <div class="modal-history-title">Dernières mises à jour</div>
+                    <div class="modal-history-list" id="modal-history-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
     // ── Parseur CSV (RFC 4180) ────────────────────────────────────────────────
@@ -680,10 +772,55 @@
     const cardTpl       = document.getElementById('card-tpl');
     const backToTopBtn  = document.getElementById('backToTop');
     const toggleControlsBtn = document.getElementById('toggleControls');
+    const filterTranslator = document.getElementById('filterTranslator');
+    const viewToggle       = document.getElementById('viewToggle');
+    const majSearchInput   = document.getElementById('majSearch');
 
     let GAMES_DATA = [];
+    let MAJ_ENTRIES = [];
+    let RECENT_GAMES_SET = new Set();
+    let modalNavList = [];
+    let modalNavIdx = 0;
+    let listMode = false;
     let dataSource = 'cache';
     let lastSyncLabel = '';
+
+    // ── Progress bar ─────────────────────────────────────────────────────────
+    const pgbar = document.getElementById('pgbar');
+    function showProgress() { pgbar.style.opacity='1'; pgbar.style.width='40%'; }
+    function advanceProgress() { pgbar.style.width='75%'; }
+    function hideProgress() {
+        pgbar.style.width='100%';
+        setTimeout(() => { pgbar.style.opacity='0'; pgbar.style.width='0'; }, 400);
+    }
+
+    // ── Skeleton ──────────────────────────────────────────────────────────────
+    function showSkeleton() {
+        loadingEl.innerHTML = Array(8).fill(0).map(() =>
+            `<div class="sk-card"><div class="sk-img"></div>
+             <div class="sk-line"></div><div class="sk-line short"></div></div>`
+        ).join('');
+        loadingEl.style.display = 'contents';
+    }
+    function hideSkeleton() { loadingEl.style.display = 'none'; loadingEl.innerHTML = ''; }
+
+    // ── Badge NOUVEAU ─────────────────────────────────────────────────────────
+    function buildRecentGamesSet(entries) {
+        RECENT_GAMES_SET = new Set();
+        const cutoff = Date.now() - 7 * 86400000;
+        for (const e of entries) {
+            if (!e.date) continue;
+            // Parse FR date dd/mm/yyyy
+            const parts = e.date.split('/');
+            if (parts.length !== 3) continue;
+            const d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            if (isNaN(d.getTime()) || d.getTime() < cutoff) continue;
+            e.games.split(',').forEach(g => {
+                const t = g.trim().toLowerCase();
+                if (t) RECENT_GAMES_SET.add(t);
+            });
+        }
+    }
 
     // ── Dernière mise à jour (via meta.json) ─────────────────────────────────
 
@@ -737,8 +874,10 @@
     }
 
     async function fetchGames(skipCacheDisplay) {
+        if (!skipCacheDisplay) { showProgress(); showSkeleton(); }
         try {
             const res  = await fetch('./data/jeux.csv');
+            advanceProgress();
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const text = await res.text();
             const rows = parseCSV(text);
@@ -769,13 +908,19 @@
             const savedStatut   = filterStatut.value;
             const savedType     = filterType.value;
             const savedTradType = filterTradType.value;
+            const savedTrad     = filterTranslator.value;
             populateFilters();
-            filterStatut.value   = savedStatut;
-            filterType.value     = savedType;
-            filterTradType.value = savedTradType;
+            filterStatut.value      = savedStatut;
+            filterType.value        = savedType;
+            filterTradType.value    = savedTradType;
+            filterTranslator.value  = savedTrad;
+            hideSkeleton();
+            hideProgress();
             render();
         } catch (err) {
+            hideProgress();
             if (!skipCacheDisplay) {
+                hideSkeleton();
                 loadingEl.style.display = 'none';
                 errorEl.style.display   = 'block';
                 errorEl.textContent     = `Erreur de chargement : ${err.message}`;
@@ -784,8 +929,10 @@
     }
 
     function populateFilters() {
-        while (filterType.options.length > 1)     filterType.remove(1);
-        while (filterTradType.options.length > 1) filterTradType.remove(1);
+        while (filterType.options.length > 1)        filterType.remove(1);
+        while (filterTradType.options.length > 1)    filterTradType.remove(1);
+        const savedTrad = filterTranslator.value;
+        while (filterTranslator.options.length > 1)  filterTranslator.remove(1);
 
         const types = [...new Set(GAMES_DATA.map(g => g.type_moteur).filter(Boolean))].sort();
         types.forEach(t => {
@@ -800,6 +947,14 @@
             opt.value = t; opt.textContent = t;
             filterTradType.appendChild(opt);
         });
+
+        const translators = [...new Set(GAMES_DATA.map(g => g.traducteur).filter(Boolean))].sort();
+        translators.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            filterTranslator.appendChild(opt);
+        });
+        filterTranslator.value = savedTrad;
     }
 
     // ── Plateformes de téléchargement ────────────────────────────────────────
@@ -873,7 +1028,7 @@
         }
     }, { rootMargin: '300px' });
 
-    function renderCard(game) {
+    function renderCard(game, navIdx) {
         const clone = cardTpl.content.cloneNode(true);
         const card  = clone.querySelector('.card');
 
@@ -907,6 +1062,14 @@
         if (game.type_trad) { tradTypeBadge.textContent = game.type_trad; }
         else { tradTypeBadge.remove(); }
 
+        // Badge NOUVEAU
+        if (RECENT_GAMES_SET.has((game.nom || '').toLowerCase())) {
+            const newBadge = document.createElement('span');
+            newBadge.className = 'badge badge-new';
+            newBadge.textContent = 'NOUVEAU';
+            card.querySelector('.card-meta').appendChild(newBadge);
+        }
+
         const infoEl = card.querySelector('.card-info');
         let infoHtml = `Version: <span>${escapeHtml(game.version)}</span> | Trad: <span>${escapeHtml(game.trad_version)}</span>`;
         if (game.traducteur) {
@@ -920,8 +1083,10 @@
         infoEl.innerHTML = infoHtml;
 
         const tagsEl = card.querySelector('.card-tags');
-        if (game.tags) { tagsEl.textContent = game.tags; }
-        else { tagsEl.remove(); }
+        if (game.tags) {
+            tagsEl.innerHTML = game.tags.split(',').map(t => t.trim()).filter(Boolean)
+                .map(t => `<span class="tag-chip" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join('');
+        } else { tagsEl.remove(); }
 
         const linksEl = card.querySelector('.card-links');
         if (game.game_url) {
@@ -929,7 +1094,7 @@
             gameBtn.href      = game.game_url;
             gameBtn.innerHTML = `${PLATFORM_LOGOS.f95}<span>Page F95</span>`;
         } else {
-            linksEl.remove();
+            linksEl.querySelector('a').remove();
         }
 
         if (game.trad_url) {
@@ -949,6 +1114,14 @@
             linksEl.appendChild(badge);
         }
 
+        // Bouton info modal
+        const infoBtn = document.createElement('button');
+        infoBtn.className = 'btn btn-info';
+        infoBtn.textContent = 'ℹ';
+        infoBtn.title = 'Voir détails';
+        infoBtn.dataset.navIdx = navIdx;
+        linksEl.appendChild(infoBtn);
+
         return clone;
     }
 
@@ -958,7 +1131,13 @@
 
         const fragment = document.createDocumentFragment();
         for (let i = displayedCount; i < end; i++) {
-            fragment.appendChild(renderCard(currentFiltered[i]));
+            const frag = renderCard(currentFiltered[i], i);
+            const card = frag.querySelector('.card');
+            if (card) {
+                card.style.animationDelay = (i % BATCH_SIZE * 30) + 'ms';
+                card.dataset.gidx = i;
+            }
+            fragment.appendChild(frag);
         }
 
         fragment.querySelectorAll('.card-img-wrap[data-src]').forEach(w => imgObserver.observe(w));
@@ -987,11 +1166,13 @@
     }
 
     function _render() {
+        hideSkeleton();
         loadingEl.style.display = 'none';
         const query     = searchInput.value.toLowerCase().trim();
         const sStatut   = filterStatut.value;
         const sType     = filterType.value;
         const sTradType = filterTradType.value;
+        const sTrad     = filterTranslator.value;
         const sort      = sortBy.value;
 
         currentFiltered = GAMES_DATA.filter(g => {
@@ -1001,6 +1182,7 @@
             if (sStatut   && g.statut       !== sStatut)   return false;
             if (sType     && g.type_moteur  !== sType)     return false;
             if (sTradType && g.type_trad    !== sTradType) return false;
+            if (sTrad     && g.traducteur   !== sTrad)     return false;
             return true;
         });
 
@@ -1030,7 +1212,8 @@
         try {
             sessionStorage.setItem('gx_filters', JSON.stringify({
                 search: searchInput.value, statut: filterStatut.value,
-                type: filterType.value, tradType: filterTradType.value, sort: sortBy.value
+                type: filterType.value, tradType: filterTradType.value,
+                translator: filterTranslator.value, sort: sortBy.value
             }));
         } catch (e) {}
     }
@@ -1040,17 +1223,18 @@
             const raw = sessionStorage.getItem('gx_filters');
             if (!raw) return;
             const f = JSON.parse(raw);
-            if (f.search)   searchInput.value   = f.search;
-            if (f.statut)   filterStatut.value  = f.statut;
-            if (f.type)     filterType.value     = f.type;
-            if (f.tradType) filterTradType.value = f.tradType;
-            if (f.sort)     sortBy.value         = f.sort;
+            if (f.search)      searchInput.value        = f.search;
+            if (f.statut)      filterStatut.value       = f.statut;
+            if (f.type)        filterType.value          = f.type;
+            if (f.tradType)    filterTradType.value      = f.tradType;
+            if (f.translator)  filterTranslator.value    = f.translator;
+            if (f.sort)        sortBy.value              = f.sort;
         } catch (e) {}
     }
 
     function hasActiveFilters() {
         return searchInput.value || filterStatut.value || filterType.value ||
-               filterTradType.value || sortBy.value !== 'nom';
+               filterTradType.value || filterTranslator.value || sortBy.value !== 'nom';
     }
 
     function updateResetBtn() {
@@ -1059,7 +1243,7 @@
 
     function resetFilters() {
         searchInput.value = ''; filterStatut.value = ''; filterType.value = '';
-        filterTradType.value = ''; sortBy.value = 'nom';
+        filterTradType.value = ''; filterTranslator.value = ''; sortBy.value = 'nom';
         render();
     }
 
@@ -1075,6 +1259,7 @@
                 const data = JSON.parse(raw);
                 if (data && Array.isArray(data.entries) && data.entries.length > 0) {
                     renderMaj(data.entries);
+                    buildRecentGamesSet(data.entries);
                     if (Date.now() - data.ts > CACHE_TTL) loadMajFromAPI();
                     return;
                 }
@@ -1100,6 +1285,7 @@
                 localStorage.setItem(MAJ_CACHE_KEY, JSON.stringify({ ts: Date.now(), entries }));
             } catch (e) {}
             renderMaj(entries);
+            buildRecentGamesSet(entries);
         } catch (err) {
             majLoading.textContent = 'Erreur de chargement des mises à jour.';
         }
@@ -1118,13 +1304,21 @@
         return 'maj-type-other';
     }
 
-    function renderMaj(entries) {
+    function renderMaj(entries, query) {
         majLoaded = true;
         majLoading.style.display = 'none';
+        MAJ_ENTRIES = entries;
+
+        const q = (query || '').toLowerCase().trim();
+        const filtered = q ? entries.filter(e =>
+            e.games.toLowerCase().includes(q) ||
+            e.type.toLowerCase().includes(q) ||
+            e.date.includes(q)
+        ) : entries;
 
         const groups = [];
         let lastDate = null;
-        for (const e of entries) {
+        for (const e of filtered) {
             if (e.date !== lastDate) {
                 groups.push({ date: e.date, items: [] });
                 lastDate = e.date;
@@ -1163,6 +1357,10 @@
 
         majContent.innerHTML = '';
         majContent.appendChild(fragment);
+    }
+
+    function renderMajFiltered() {
+        renderMaj(MAJ_ENTRIES, majSearchInput.value);
     }
 
     // ── Onglet Informations (JSONP Google Sheets — inchangé) ──────────────────
@@ -1372,8 +1570,9 @@
         return result + escapeHtml(text.slice(last));
     }
 
-    function openGameModal(idx) {
-        const game = GAMES_DATA[idx];
+    function openGameModal(navIdx, navList) {
+        if (navList) { modalNavList = navList; modalNavIdx = navIdx; }
+        const game = modalNavList.length > 0 ? modalNavList[modalNavIdx] : GAMES_DATA[navIdx];
         if (!game) return;
 
         const imgEl   = document.getElementById('modal-img');
@@ -1382,6 +1581,19 @@
         const infoEl  = document.getElementById('modal-info');
         const linksEl = document.getElementById('modal-links');
         const tagsEl  = document.getElementById('modal-tags');
+        const modalPrev = document.getElementById('modalPrev');
+        const modalNext = document.getElementById('modalNext');
+
+        // Update nav buttons
+        if (modalNavList.length > 1) {
+            modalPrev.disabled = modalNavIdx <= 0;
+            modalNext.disabled = modalNavIdx >= modalNavList.length - 1;
+            modalPrev.style.display = '';
+            modalNext.style.display = '';
+        } else {
+            modalPrev.style.display = 'none';
+            modalNext.style.display = 'none';
+        }
 
         if (game.image_url) {
             imgEl.innerHTML = `<img src="${escapeHtml(game.image_url)}" referrerpolicy="no-referrer" alt="${escapeHtml(game.nom)}">`;
@@ -1422,6 +1634,25 @@
         }
         linksEl.innerHTML = linksHtml;
 
+        // Historique MAJ
+        const histEl = document.getElementById('modal-history-list');
+        const histContainer = document.getElementById('modal-history');
+        const gameName = (game.nom || '').toLowerCase();
+        const history = MAJ_ENTRIES.filter(e =>
+            e.games.toLowerCase().split(',').map(s => s.trim()).includes(gameName)
+        );
+        if (history.length > 0) {
+            histEl.innerHTML = history.slice(0, 8).map(e =>
+                `<div class="modal-history-entry">
+                    <span class="mh-date">${escapeHtml(e.date)}</span>
+                    <span class="maj-type ${majTypeClass(e.type)}">${escapeHtml(e.type)}</span>
+                </div>`
+            ).join('');
+            histContainer.style.display = '';
+        } else {
+            histContainer.style.display = 'none';
+        }
+
         document.getElementById('game-modal').classList.add('visible');
         document.body.style.overflow = 'hidden';
     }
@@ -1431,7 +1662,15 @@
         document.body.style.overflow = '';
     }
 
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGameModal(); });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeGameModal();
+        if (e.key === 'ArrowLeft'  && document.getElementById('game-modal').classList.contains('visible')) {
+            if (modalNavIdx > 0) { modalNavIdx--; openGameModal(modalNavIdx); }
+        }
+        if (e.key === 'ArrowRight' && document.getElementById('game-modal').classList.contains('visible')) {
+            if (modalNavIdx < modalNavList.length - 1) { modalNavIdx++; openGameModal(modalNavIdx); }
+        }
+    });
 
     // ── Navigation par onglets ────────────────────────────────────────────────
 
@@ -1485,7 +1724,7 @@
     tabInfo.addEventListener('click', () => switchTab('info'));
     majPanel.addEventListener('click', (e) => {
         const el = e.target.closest('.game-link');
-        if (el) openGameModal(parseInt(el.dataset.idx));
+        if (el) openGameModal(parseInt(el.dataset.idx), GAMES_DATA);
     });
     window.addEventListener('hashchange', () => {
         const h = location.hash.replace('#', '') || 'jeux';
@@ -1520,10 +1759,54 @@
     sortBy.addEventListener('change',       render);
     resetBtn.addEventListener('click',      resetFilters);
 
+    // Tag chips event delegation
+    grid.addEventListener('click', e => {
+        const chip = e.target.closest('.tag-chip');
+        if (chip) { searchInput.value = chip.dataset.tag; render(); }
+        const infoBtn = e.target.closest('.btn-info');
+        if (infoBtn) {
+            const idx = parseInt(infoBtn.dataset.navIdx);
+            openGameModal(idx, currentFiltered);
+        }
+    });
+
+    // View toggle
+    viewToggle.addEventListener('click', () => {
+        listMode = !listMode;
+        grid.classList.toggle('list-mode', listMode);
+        viewToggle.textContent = listMode ? '⊟' : '⊞';
+        viewToggle.title = listMode ? 'Vue grille' : 'Vue liste';
+    });
+
+    // MAJ search
+    let majSearchTimer;
+    majSearchInput.addEventListener('input', () => {
+        clearTimeout(majSearchTimer);
+        majSearchTimer = setTimeout(renderMajFiltered, 200);
+    });
+
+    // Modal nav
+    document.getElementById('modalPrev').addEventListener('click', () => {
+        if (modalNavIdx > 0) { modalNavIdx--; openGameModal(modalNavIdx); }
+    });
+    document.getElementById('modalNext').addEventListener('click', () => {
+        if (modalNavIdx < modalNavList.length - 1) { modalNavIdx++; openGameModal(modalNavIdx); }
+    });
+
+    filterTranslator.addEventListener('change', render);
+
     // ── Démarrage ─────────────────────────────────────────────────────────────
 
     (function init() {
         fetchLastSync();
+        // Pre-load RECENT_GAMES_SET from MAJ cache if available
+        try {
+            const majRaw = localStorage.getItem(MAJ_CACHE_KEY);
+            if (majRaw) {
+                const majData = JSON.parse(majRaw);
+                if (majData && Array.isArray(majData.entries)) buildRecentGamesSet(majData.entries);
+            }
+        } catch(e) {}
         const cached = loadCache();
         if (cached && cached.games.length > 0) {
             GAMES_DATA = cached.games;
@@ -1541,20 +1824,6 @@
         if (hash === 'maj' || hash === 'info') switchTab(hash, false);
     })();
     </script>
-    <!-- Modal jeu (depuis MAJ) -->
-    <div class="modal-overlay" id="game-modal" onclick="if(event.target===this)closeGameModal()">
-        <div class="modal-box">
-            <button class="modal-close" onclick="closeGameModal()">✕</button>
-            <div class="modal-img" id="modal-img"></div>
-            <div class="modal-body">
-                <div class="modal-title" id="modal-title"></div>
-                <div class="modal-meta"  id="modal-meta"></div>
-                <div class="modal-info"  id="modal-info"></div>
-                <div class="modal-links" id="modal-links"></div>
-                <div class="modal-tags"  id="modal-tags"></div>
-            </div>
-        </div>
-    </div>
 
     <script data-goatcounter="https://theblackcat47.goatcounter.com/count"
             async src="//gc.zgo.at/count.js"></script>
